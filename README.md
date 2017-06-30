@@ -12,8 +12,8 @@ where performance bottlenecks might lie.
 
 The following instructions outline how to begin searching for patterns on a large trace.
 
-1. First, we must provice the trace data, and process it into the desired format. Place
-the trace data is the directory `./data/data/`. Then run the python script `./data/processor.py`. 
+1. First, we must provide the trace data, and process it into the desired format. Place
+the trace data in the directory `./data/data/`. Then run the python script `./data/processor.py`. 
 At the top of this file, you can configure the number of events you wish to process by 
 adjusting the NUM_LINES constant. Whether you want a small trace for the purpose of developement, 
 or a large trace for the purpose of evaluation, you can set NUM_LINES to whatever value
@@ -28,7 +28,7 @@ processing the trace, simply run this script using Node.js.
 Currently, the client application is still in developement. To run the client, simply run 
 index.html on your browser.
 
-__NOTE__: The way which the client application currently gets it's data is by having it 
+__NOTE__: The way which the client application currently gets its data is by having it 
 embedded in an html element in index.html. This is a disgusting hack, and should be changed 
 as soon as possible to facilitate scalable developement. One possibility is to create
 a local connection between the browser and a Node.js server, and have the server read
