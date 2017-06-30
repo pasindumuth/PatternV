@@ -15,7 +15,7 @@ The following instructions outline how to begin searching for patterns on a larg
 1. First, we must provice the trace data, and process it into the desired format. Place
 the trace data is the directory `./data/data/`. Then run the python script `./data/processor.py`. 
 At the top of this file, you can configure the number of events you wish to process by 
-adjusting the LINES constant. Whether you want a small trace for the purpose of developement, 
+adjusting the NUM_LINES constant. Whether you want a small trace for the purpose of developement, 
 or a large trace for the purpose of evaluation, you can set NUM_LINES to whatever value
 is appropriate.
 
@@ -36,7 +36,7 @@ in the trace data, find all the patterns, and render the final view before retur
 to the client.
 
 
-## Dcoumentation
+## Documentation
 
 The main documentation for the alogrithm is located in the file itself: `./js/PatternFinder.js`.
 The program starts from when the file is open and read, and thus the start of the documentation
