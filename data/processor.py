@@ -1,17 +1,19 @@
 """
-Process the data to a useable format
+Process the data to a useable format. Set the LINES to the number of
+lines which we want a well conditioned trace for (in this case,
+"well conditioned" meaning a complete callstack).
 
 """
 
-MINLINES = 3000000
+LINES = 3000000
 
-trace = open("trace.bin.7.filtered.txt")
-data = open("processed_data", "w")
+trace = open("data/trace.bin.7.filtered.txt")
+data = open("data/processed_data", "w")
 
 stack = []
 
 i = 0
-while (i < MINLINES):
+while (i < LINES):
     line = trace.readline()
     event_line, _ = line.split("\n")
     event = event_line.split(" ")

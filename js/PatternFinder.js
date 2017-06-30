@@ -4,7 +4,10 @@
  * Tuning parameters for the pattern finder algorithm.
  */
 
-var MAX_PATTERN_LENGTH = 200;
+var MAX_PATTERN_LENGTH = 200,
+    MIN_PATTERN_LENGTH = 4, // keep this above 0 to avoid pointlessly calculating the instances of the empty pattern.
+    INTERVAL_DROPPED = -1,
+    COMMON_SPAN_THRESHOLD = 0.75;
 
 /**
  * This is a wrapper of a regular array, designed for the algorithm. In the algorithm, `list` 
@@ -16,11 +19,19 @@ var PointerList = function (offset, stackDepth, list) {
     this.list = list;
 }
 
+/**
+ * This is our wrapper object for an interval that we find is a pattern. Note here, we are keeping track of 
+ * the count of the pattern.
+ */
 var PatternFrame = function (start, end, count) {
     this.count = count;
     this.start = start; 
     this.end = end; 
 }
+
+/**
+ * The main wrapper object for the main functions for the algorithm.
+ */
 
 var PatternFinder = function () {
     this.trace = [];
@@ -52,7 +63,7 @@ var PatternFinder = function () {
  * For each partition, we maintain the relative stack depth of the subtrace. Since a subtrace is a pattern
  * if and only if the relative stack depth is 0, we know exactly when to add a pattern into our collection
  * of patterns (which we represent by a particular interval in partition). Using the stack depth, also know 
- * when to completely drop an interval out during the partitioning process. If the current stack depth of
+ * when to completely drop an interval out during the extension process. If the current stack depth of
  * on interval is zero, and the next event is an exit, this exit must be the exit out of the base function 
  * of this subrace, and thus this interval can no longer correspond to a pattern.
  */
@@ -67,12 +78,9 @@ PatternFinder.prototype.findPatterns = function () {
     this.processPointerList(pointerList)
 }
 
-/**
- * 
- */
-
 PatternFinder.prototype.processPointerList = function (pointerList) {
-    // When 
+    // We cap the maximum length of a pattern to maintain scalability. 
+    // Most patterns are no more than a few hundred, anyways.
     if (pointerList.list.length <= 1 || pointerList.offset > MAX_PATTERN_LENGTH) {
         return [];
     }
@@ -85,22 +93,18 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
         patternSpan,
         patternFrame;
 
-    isPattern = (stackDepth == 0) && (offset != 0); // hack, since the empty is still a pattern, and we don't want to calculuate big stuff for it
+    isPattern = (stackDepth == 0) && (offset >= MIN_PATTERN_LENGTH); 
         
     if (isPattern) {
         patternFrame = new PatternFrame(list[0], list[0] + offset, list.length);
-        // this.patternFrames.push(patternFrame);
 
-        // Prune off collections of pattern pointers which have another pattern pointers offset distance away. 
-        // This means that the patterns overlap, and we no longer wish to account for how these overlapping
-        // patterns extend to other patterns (since they will be redundant). We call groups of consecutive
-        // pattern pointers with at least one other offset distance away a cluster.
+        // We now drop out intervals which are a part of cluster. Note that we also want to find the
+        // span of cluster. This is necessary for v2 of the algorithm.
 
         let inCluster = false,
             nextInCluster = false,
             curInterval = [];
 
-        // This will be ordered by the start pointer (and the end pointer, since the intervals are disjoint)
         curPatternIntervals = [];
         patternSpan = 0;
 
@@ -109,10 +113,6 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
             if (i + 1 < list.length) {
                 nextInCluster = (list[i + 1] - list[i]) <= offset; 
             }
-
-            // We find all intervals where this pattern occured. This is useful for when we want to see
-            // if the patterns find that extend this current pattern completely (or nearly) encompass
-            // all instances of this pattern (in which case we want the more detailed pattern).
 
             if (inCluster == false && nextInCluster == false) {
                 curInterval = [list[i], list[i] + offset];
@@ -130,14 +130,14 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
             }
 
             if (inCluster || nextInCluster) {
-                list[i] = -1; 
+                list[i] = INTERVAL_DROPPED; 
             }
 
             inCluster = nextInCluster;
         }
-
-        // console.log(curPatternIntervals);
     }
+
+    // This is where extension and partitioning of the patterns occur.
 
     offset++;
     let partition = new Map(); 
@@ -169,6 +169,11 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
         partition.get(key).list.push(patternStart); 
     }
 
+    // We now call pass these extended patterns for another iteration.
+
+    // The return value of `PatternFinder.processPointerList` is the span of all patterns
+    // extending pattern of the partition passed into as the parameter. We want to union
+    // those intervals and use them for v3 of the algorithm.
     let extendedPatternIntervals = [];
 
     for (let [key, value] of partition) {
@@ -179,11 +184,12 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
     }
 
     if (isPattern) {
+        // We need to find the intersect of the span of the extended patterns and the span of 
+        // the current patterns. To do this, we must first sort and merge intervals making up the extended
+        // patterns' span.
         extendedPatternIntervals.sort(function (a, b) {
             return a[0] - b[0];
         });
-
-        // console.log(extendedPatternIntervals);
 
         let mergedExtended = [],
             extended = extendedPatternIntervals;
@@ -200,15 +206,7 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
 
         extended = mergedExtended;
 
-        // console.log(extended);
-
-        let exspan = 0; 
-
-        for (let i = 0; i < extended.length; i++) {
-            let ext = extended[i];
-            exspan += ext[1] - ext[0];
-        }
-
+        // Here, we compute the span of the intersection.
         let intersectSpan = 0,
             i = 0, 
             j = 0; 
@@ -216,12 +214,7 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
         while (i < curPatternIntervals.length && j < extended.length) {
             let cur = curPatternIntervals[i],
                 ext = extended[j];
-                
-            if (cur[1] < cur[0]) {
-                console.log("shitty cur");
-            } else if (ext[1] < ext[0]) {
-                console.log("shitty ext");
-            }
+
             if (cur[0] < ext[0]) {
                 if (ext[0] < cur[1]) {
                     if (ext[1] <= cur[1]) {
@@ -249,7 +242,8 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
             }
         }
 
-        if (intersectSpan/patternSpan < 0.75) {
+        // We make the decision to whether to accept or reject the pattern, and finish.
+        if (intersectSpan/patternSpan < COMMON_SPAN_THRESHOLD) {
             this.patternFrames.push(patternFrame);
         }
 
@@ -303,6 +297,33 @@ PatternFinder.prototype.createTrace = function (rawTrace) {
  *     To do this, we use a recursive algorithm. See `PatternProcessor.findPatterns` for how we take
  *     a trace, and find/count all patterns in it.
  * 
+ * v1: Although v0 was elegant, the flaws were apparent. One of the most striking is that if a trace consists
+ *     of a repeated sequence of events, instead of taking one instance and saying that the pattern occurred
+ *     however many times, the algorithm also considers pairs and tripples of instances as patterns as well.
+ *     When a new pattern is detected, v1 analyzes the different intervals of the pattern,
+ *     and if there is a group of intervals such that the intervals intersect eachother, v1 considers
+ *     the new pattern to be the fundamental pattern for that occurs in the whole regions spanned by the
+ *     group, and drop these intervals out of the extension process. (Such a group is called a "cluster", and 
+ *     indices spanned by the clusting is called the "span of the cluster". We can represent the span of a
+ *     cluster with a set of intervals. We also refer to "span" is the total *length* spanned by these
+ *     intervals. The meaning the "span" will be clear by context). The intuition here is that if we were
+ *     to extend these intervals to other patterns, we would get more complex versions of the fundamental 
+ *     pattern we just detected. Since this is undesirable, we drop these intervals out of the extension processes.
+ *     The additions of v1 are located at the upper part of `PatternFinder.processPointerList`.
+ * 
+ * v2: This is a slightly more invovled modification than v1 was. A common occurance in a typical trace
+ *     was where there would be a particular pattern would occur consecutively, but that pattern would be 
+ *     built off of other patterns (with the same base function). Thus, v0 will count the number of instances
+ *     of sub patterns, as well as the whole pattern. Now, this isn't completely ilogical; the sub pattern
+ *     may occur in instances where the whole pattern may not. In practice, however, there are many times
+ *     where the sub pattern mostly occurs within an instance of the whole pattern. The fundamental problem here
+ *     is that when a new pattern is detected, it just so happens that when this pattern is extended to other
+ *     patterns, these longer patterns have a total span that intersect the span of the current pattern to a
+ *     large extent. Why count this current pattern if the longer patterns, more informative pattern encompasses
+ *     this smaller pattern? There can be an argument that this smaller pattern is somehow fundamental to all 
+ *     these extended patterns, and thus should be documented separately. However, in practice, these smaller
+ *     patterns occur mainly in the context of one or a few big patterns, and it only adds clutter to add 
+ *     these smaller patterns onto main list.
  */
 
 const fs = require("fs");
@@ -325,7 +346,3 @@ var execute = function (textData) {
     console.log("Pattern Finding Finished");
     console.log(patternFinder.patternFrames.length)
 }
-
-/**
- * Note the format of the textData, python script run, MAX_LINES
- */
