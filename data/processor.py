@@ -1,7 +1,7 @@
 """
 Process the data to a useable format. Set the LINES to the number of
 lines which we want a well conditioned trace for (in this case,
-"well conditioned" meaning a complete callstack).
+"well conditioned" means a complete callstack).
 
 """
 

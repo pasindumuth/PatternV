@@ -2,9 +2,9 @@
 
 ## About
 
-PatternV is a massive trace analysis tool which searches for subtraces which are also
-full function callstacks. We call these subtraces "patterns". PatternV can also
-find all instances of where such a pattern occurs, and thus provide insight into 
+PatternV is a massive trace analysis tool which searches for subtraces with the property of 
+being full function callstacks. We call these subtraces "patterns". PatternV can also
+finds all instances of where such a pattern occurs, and thus provide insight into 
 main structure of a trace.
 
 ## Getting started
@@ -22,6 +22,8 @@ developement and testing purposes).
 
 2. The program js/PatternFinder.js can be executed by running it with Node.js. This 
 is the main algorithm which will find patterns in the processed trace in step 1. 
+
+3. To understand the algorithm, start reading the documentation from the bottom of PatterFinder.js. 
 
 
 ## Running the Client Application
