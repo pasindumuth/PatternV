@@ -1,11 +1,11 @@
 """
-Process the data to a useable format. Set the LINES to the number of
+Process the data to a useable format. Set the NUM_LINES to the number of
 lines which we want a well conditioned trace for (in this case,
 "well conditioned" means a complete callstack).
 
 """
 
-LINES = 3000000
+NUM_LINES = 3000000
 
 trace = open("data/trace.bin.7.filtered.txt")
 data = open("data/processed_data", "w")
@@ -13,7 +13,7 @@ data = open("data/processed_data", "w")
 stack = []
 
 i = 0
-while (i < LINES):
+while (i < NUM_LINES):
     line = trace.readline()
     event_line, _ = line.split("\n")
     event = event_line.split(" ")
