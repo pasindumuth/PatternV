@@ -1,28 +1,40 @@
 "use strict";
 
-var data4 = $("#p4").text().split(",");
+let rawTrace = $("#p4").text().split(",");
 
-var patternFinder = new PatternFinder();
-var trace = patternFinder.createTrace(data4);
+let patternFinder = new PatternFinder();
+let trace = patternFinder.createTrace(rawTrace);
 patternFinder.findPatterns();
-// console.log("bottleneckpassed")
-var patternFrames = patternFinder.patternFrames;
 
-var processor = new Processor(); 
-processor.processPatternData(trace, new PatternFrame(0, trace.length - 2, 1));
-for (var i = 0; i < patternFrames.length; i++) {
-    if (patternFrames[i].start + 4 < patternFrames[i].end) {
-        processor.processPatternData(trace, patternFrames[i]);  
-    }
+let patternFrames;
+let filtersOn = false;
+
+patternFrames = patternFinder.patternFrames;
+
+if (filtersOn) {
+    let rotateFilter = new RotateFilter(trace, patternFinder.patternFrames);
+    rotateFilter.filter();
+    patternFrames = rotateFilter.filteredPatternFrames;
+
+    rotateFilter = null;
 }
 
-var patterns = processor.getPatterns();
+patternFinder = null;
+
+
+let processor = new Processor(); 
+processor.processPatternData(trace, new PatternFrame(0, trace.length - 2, 1));
+for (let i = 0; i < patternFrames.length; i++) {
+    processor.processPatternData(trace, patternFrames[i]);  
+}
+
+let patterns = processor.getPatterns();
 
 console.log(patterns.length);
 
-var renderer = new Renderer ($("#mainRenderContainer"), processor.functions);
+let renderer = new Renderer ($("#mainRenderContainer"), processor.functions);
 renderer.renderSinglePattern(patterns[0]); 
-for (var i = 1; i < patterns.length; i++) {
+for (let i = 1; i < patterns.length; i++) {
     renderer.renderMultiPattern(patterns[i]);
 }
 renderer.createMouseListener();

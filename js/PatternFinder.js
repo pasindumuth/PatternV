@@ -23,10 +23,12 @@ var PointerList = function (offset, stackDepth, list) {
  * This is our wrapper object for an interval that we find is a pattern. Note here, we are keeping 
  * track of the count of the pattern.
  */
-var PatternFrame = function (start, end, count) {
-    this.count = count;
+var PatternFrame = function (start, end) {
     this.start = start; 
     this.end = end; 
+    this.intervals;
+    this.span;
+    this.count; // when filters are applied, this number is meaningless.
 }
 
 /**
@@ -99,7 +101,8 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
     isPattern = (stackDepth == 0) && (offset >= MIN_PATTERN_LENGTH); 
         
     if (isPattern) {
-        patternFrame = new PatternFrame(list[0], list[0] + offset, list.length);
+        patternFrame = new PatternFrame(list[0], list[0] + offset);
+        patternFrame.count = list.length;
 
         // The following processessing is for v1 and v2 of the algorithm. Here, we drop out 
         // intervals which are a part of a cluster (for v1). In addition 
@@ -144,6 +147,9 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
 
             inCluster = nextInCluster;
         }
+
+        patternFrame.intervals = curPatternIntervals;
+        patternFrame.span = patternSpan;
     }
 
     // This is where the extension and partitioning of the current subtrace occurs.
@@ -157,15 +163,15 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
         }
 
         let patternStart = list[i];
-        let lineObj = this.trace[patternStart + offset].split(":");
-        if (stackDepth == 0 && lineObj[0] == "exit") {
+        let event = this.trace[patternStart + offset].split(":");
+        if (stackDepth == 0 && event[0] == "exit") {
             continue;
         }
 
         let key = this.trace[patternStart + offset];
         if (!partition.has(key)) {
             let newStackDepth; 
-            if (lineObj[0] == "enter") {
+            if (event[0] == "enter") {
                 newStackDepth = stackDepth + 1; 
             } else {
                 newStackDepth = stackDepth - 1;
@@ -189,7 +195,7 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
     for (let [key, value] of partition) {
         let nextIntervals = this.processPointerList(value);
         for (let interval of nextIntervals) {
-            extendedPatternIntervals.push(interval);
+            extendedPatternIntervals.push(interval); // This can be expensive in memory.
         }
     }
 
@@ -344,6 +350,8 @@ PatternFinder.prototype.createTrace = function (rawTrace) {
  */
 
 const fs = require("fs");
+const filters = require("./Filters.js");
+var RotateFilter = filters.RotateFilter;
 
 fs.readFile("../data/data/processed_data", "utf-8", function (err, textData) {
     if (err) {
@@ -354,12 +362,44 @@ fs.readFile("../data/data/processed_data", "utf-8", function (err, textData) {
 });
 
 var execute = function (textData) {
-    var rawTrace = textData.split(",");
+    let rawTrace = textData.split(",");
 
     console.log("Starting");
-    var patternFinder = new PatternFinder();
-    patternFinder.createTrace(rawTrace);
+    let patternFinder = new PatternFinder();
+    let trace = patternFinder.createTrace(rawTrace);
     patternFinder.findPatterns();
+
     console.log("Pattern Finding Finished");
-    console.log(patternFinder.patternFrames.length)
+    console.log(patternFinder.patternFrames.length);
+
+    // I've begun to implement some filters for the patterns we are getting. This is still 
+    // very rough around the edges. Toggle this boolean variable to turn on filters, which
+    // will be applied to patternFinder.patternFrames after this point.
+    let filtersOn = false;
+    
+    if (filtersOn) {
+        let rotateFilter = new RotateFilter(trace, patternFinder.patternFrames);
+        rotateFilter.filter();
+        let filteredPatternFrames = rotateFilter.filteredPatternFrames;
+
+        rotateFilter = null;
+        patternFinder = null;
+
+        console.log("RotateFilter Applied");
+        console.log(filteredPatternFrames.length);
+    }
+
+
+    // patternFinder.patternFrames.sort(function (a, b) {
+    //     return b.span - a.span;
+    // });
+
+    // for (let i = 0; i < 100; i++) {
+    //     console.log(patternFinder.patternFrames[i].span/3000000);
+    // }
 }
+
+/**
+ * TODO: If memory is a problem, we can just break up the trace and process each
+ * chunk separately.
+ */

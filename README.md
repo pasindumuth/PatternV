@@ -39,5 +39,5 @@ to the client.
 ## Documentation
 
 The main documentation for the alogrithm is located in the file itself: `./js/PatternFinder.js`.
-The program starts from when the file is open and read, and thus the start of the documentation
+The program starts from when the data file is open and read, and thus the start of the documentation
 is located there as well. 
