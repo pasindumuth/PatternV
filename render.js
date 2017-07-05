@@ -5,21 +5,22 @@ let rawTrace = $("#p4").text().split(",");
 let patternFinder = new PatternFinder();
 let trace = patternFinder.createTrace(rawTrace);
 patternFinder.findPatterns();
+let patternFrames = patternFinder.patternFrames;
+patternFinder = null;
 
-let patternFrames;
-let filtersOn = false;
-
-patternFrames = patternFinder.patternFrames;
-
+let filtersOn = true;
 if (filtersOn) {
-    let rotateFilter = new RotateFilter(trace, patternFinder.patternFrames);
+    let partialPatternFilter = new PartialPatternFilter(trace);
+    partialPatternFilter.createPartialPatterns(patternFrames);
+    partialPatternFilter.filter();
+    patternFrames = partialPatternFilter.filteredPatternFrames;
+    partialPatternFilter = null;
+
+    let rotateFilter = new RotateFilter(trace, patternFrames);
     rotateFilter.filter();
     patternFrames = rotateFilter.filteredPatternFrames;
-
     rotateFilter = null;
 }
-
-patternFinder = null;
 
 
 let processor = new Processor(); 
@@ -32,19 +33,19 @@ let patterns = processor.getPatterns();
 
 console.log(patterns.length);
 
-let renderer = new Renderer ($("#mainRenderContainer"), processor.functions);
-renderer.renderSinglePattern(patterns[0]); 
-for (let i = 1; i < patterns.length; i++) {
-    renderer.renderMultiPattern(patterns[i]);
+if (!(patterns.length > 100)) {
+    let renderer = new Renderer ($("#mainRenderContainer"), processor.functions);
+    renderer.renderSinglePattern(patterns[0]); 
+    for (let i = 1; i < patterns.length; i++) {
+        renderer.renderMultiPattern(patterns[i]);
+    }
+    renderer.createMouseListener();
 }
-renderer.createMouseListener();
 
 /**
  * TODO: 
- * 1. Cap length of a pattern (and enforce any other necessary limitation) to ensure linear time and space. 
+ * 1. Clean up memory leaks. Reduce memory usage by constantly cleaning up.
  * 2. Avoid heirarchial repetition, even if the shallower patterns are slightly more numerous.
- * 3. View the patterns in order, and report the number of instances.
- * 4. Provide interface for better reporting metrics (minimum pattern length, stack depth, etc).
- * 5. Do all this in layers for a good presentation.
+ * 4. Provide interface for better reporting metrics (intervals of occurance)
  * 6. Note that the processedEvents for all patterns are being buffered before rendering. Fix that.
  */

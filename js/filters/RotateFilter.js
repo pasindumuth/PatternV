@@ -197,6 +197,4 @@ RotateFilter.prototype.calculateSpan = function (intervals) {
     return span;
 }
 
-module.exports = {
-    RotateFilter: RotateFilter
-};
+module.exports = RotateFilter;

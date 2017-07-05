@@ -29,6 +29,7 @@ var PatternFrame = function (start, end) {
     this.intervals;
     this.span;
     this.count; // when filters are applied, this number is meaningless.
+    this.valid = true;
 }
 
 /**
@@ -350,8 +351,8 @@ PatternFinder.prototype.createTrace = function (rawTrace) {
  */
 
 const fs = require("fs");
-const filters = require("./Filters.js");
-var RotateFilter = filters.RotateFilter;
+// const RotateFilter = require("./filters/RotateFilter.js");
+// const PartialPatternFilter = require("./filters/PartialPatternFilter.js");
 
 fs.readFile("../data/data/processed_data", "utf-8", function (err, textData) {
     if (err) {
@@ -364,29 +365,35 @@ fs.readFile("../data/data/processed_data", "utf-8", function (err, textData) {
 var execute = function (textData) {
     let rawTrace = textData.split(",");
 
-    console.log("Starting");
+    console.log("Start PatternFinder");
+
     let patternFinder = new PatternFinder();
     let trace = patternFinder.createTrace(rawTrace);
     patternFinder.findPatterns();
+    let patternFrames = patternFinder.patternFrames;
+    patternFinder = null;
 
-    console.log("Pattern Finding Finished");
-    console.log(patternFinder.patternFrames.length);
+    console.log(patternFrames.length);
 
-    // I've begun to implement some filters for the patterns we are getting. This is still 
-    // very rough around the edges. Toggle this boolean variable to turn on filters, which
-    // will be applied to patternFinder.patternFrames after this point.
-    let filtersOn = false;
-    
+    let filtersOn = true;
     if (filtersOn) {
-        let rotateFilter = new RotateFilter(trace, patternFinder.patternFrames);
+        console.log("Start PartialPatternFilter");
+
+        let partialPatternFilter = new PartialPatternFilter(trace);
+        partialPatternFilter.createPartialPatterns(patternFrames);
+        partialPatternFilter.filter();
+        patternFrames = partialPatternFilter.filteredPatternFrames;
+        partialPatternFilter = null;
+
+        console.log(patternFrames.length);
+        console.log("Start RotateFilter");
+
+        let rotateFilter = new RotateFilter(trace, patternFrames);
         rotateFilter.filter();
-        let filteredPatternFrames = rotateFilter.filteredPatternFrames;
-
+        patternFrames = rotateFilter.filteredPatternFrames;
         rotateFilter = null;
-        patternFinder = null;
 
-        console.log("RotateFilter Applied");
-        console.log(filteredPatternFrames.length);
+        console.log(patternFrames.length);
     }
 
 
@@ -402,4 +409,7 @@ var execute = function (textData) {
 /**
  * TODO: If memory is a problem, we can just break up the trace and process each
  * chunk separately.
+ * 
+ * major pattern filter optimizations.
+ * make sure to document all properties returned from functions (that intervals are naturally ordered)
  */
