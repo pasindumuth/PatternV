@@ -1,5 +1,7 @@
 "use strict";
 
+const utils = require("./utils.js");
+
 var SortedPattern = function (patternFrame) {
     this.patternFrame = patternFrame;
     this.length = patternFrame.end - patternFrame.start;
@@ -94,10 +96,8 @@ RotateFilter.prototype.filterR = function (patternList) {
         let patternFrame = completed[0].patternFrame;
         for (let i = 1; i < completed.length; i++) {
             let newIntervals = completed[i].patternFrame.intervals;
-            patternFrame.intervals = this.merge(patternFrame.intervals, newIntervals);
-            // console.log("here merging");
+            patternFrame.intervals = utils.mergeIntervals(patternFrame.intervals, newIntervals);
         }
-        // console.log("(" + patternFrame.start.toString() + ", " + patternFrame.end.toString() + ")");
 
 
         patternFrame.span = this.calculateSpan(patternFrame.intervals);
@@ -107,85 +107,6 @@ RotateFilter.prototype.filterR = function (patternList) {
     for (let [key, value] of partition) {
         this.filterR(value);
     }
-}
-
-RotateFilter.prototype.merge = function (intervals1, intervals2) {
-    if (intervals1.length == 0) {
-        return intervals2;
-    } 
-
-    if (intervals2.length == 0) {
-        return intervals1;
-    }
-
-    if (intervals1[0][0] > intervals2[0][0]) {
-        let temp = intervals1;
-        intervals1 = intervals2; 
-        intervals2 = temp;
-    }
-
-    let newIntervals = [];
-    newIntervals.push(intervals1[0]);
-    
-    let i = 1,
-        j = 0;
-
-    while (i < intervals1.length && j < intervals2.length) {
-        let lastInterval = newIntervals[newIntervals.length - 1],
-            i1 = intervals1[i],
-            i2 = intervals2[j];
-
-        if (i1[0] < i2[0]) {
-            if (i1[0] <= lastInterval[1]) {
-                lastInterval[1] = Math.max(lastInterval[1], i1[1]);
-            } else {
-                newIntervals.push(i1);
-            }
-
-            i++;
-        } else {
-            if (i2[0] <= lastInterval[1]) {
-                lastInterval[1] = Math.max(lastInterval[1], i2[1]);
-            } else {
-                newIntervals.push(i2);
-            }
-
-            j++;
-        }
-    }
-
-    let lastInterval = newIntervals[newIntervals.length - 1];
-    while (i < intervals1.length) {
-        let i1 = intervals1[i];
-        if (lastInterval[1] < i1[0]) {
-            while (i < intervals1.length) {
-                newIntervals.push(intervals1[i]);
-                i++;
-            }
-
-            break;
-        } else {
-            lastInterval[1] = Math.max(lastInterval[1], i1[1]);
-            i++;
-        }
-    }
-
-    while (j < intervals2.length) {
-        let i2 = intervals2[j];
-        if (lastInterval[1] < i2[0]) {
-            while (j < intervals2.length) {
-                newIntervals.push(intervals2[j]);
-                j++;
-            }
-
-            break;
-        } else {
-            lastInterval[1] = Math.max(lastInterval[1], i2[1]);
-            j++;
-        }
-    }
-
-    return newIntervals;
 }
 
 RotateFilter.prototype.calculateSpan = function (intervals) {

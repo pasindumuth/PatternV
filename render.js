@@ -7,7 +7,7 @@ let trace = patternFinder.createTrace(rawTrace);
 patternFinder.findPatterns();
 
 let patternFrames;
-let filtersOn = false;
+let filtersOn = true;
 
 patternFrames = patternFinder.patternFrames;
 

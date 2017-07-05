@@ -1,5 +1,9 @@
 "use strict";
 
+const fs = require("fs");
+const utils = require("./utils.js");
+const RotateFilter = require("./Filters.js").RotateFilter;
+
 /**
  * Tuning parameters for the pattern finder algorithm.
  */
@@ -207,63 +211,16 @@ PatternFinder.prototype.processPointerList = function (pointerList) {
             return a[0] - b[0];
         });
 
-        let mergedExtended = [],
-            extended = extendedPatternIntervals;
-
-        for (let i = 0; i < extended.length; i++) {
-            let curInterval = [];
-            curInterval[0] = extended[i][0];
-            while (i + 1 < extended.length && extended[i][1] >= extended[i + 1][0]) {
-                i++;
-            }
-            curInterval[1] = extended[i][1];
-            mergedExtended.push(curInterval);
-        }
-
-        extended = mergedExtended;
+        extendedPatternIntervals = utils.squishIntervals(extendedPatternIntervals);
 
         // We now compute the span of the intersection.
-        let intersectSpan = 0,
-            i = 0, 
-            j = 0; 
-
-        while (i < curPatternIntervals.length && j < extended.length) {
-            let cur = curPatternIntervals[i],
-                ext = extended[j];
-
-            if (cur[0] < ext[0]) {
-                if (ext[0] < cur[1]) {
-                    if (ext[1] <= cur[1]) {
-                        intersectSpan += ext[1] - ext[0];
-                        j++;
-                    } else {
-                        intersectSpan += cur[1] - ext[0];
-                        i++;
-                    }
-                } else {
-                    i++;
-                }
-            } else {
-                if (cur[0] < ext[1]) {
-                    if (cur[1] <= ext[1]) {
-                        intersectSpan += cur[1] - cur[0];
-                        i++;
-                    } else {
-                        intersectSpan += ext[1] - cur[0];
-                        j++;
-                    }
-                } else {
-                    j++;
-                }
-            }
-        }
+        let intersectSpan = utils.intersectSpan(curPatternIntervals, extendedPatternIntervals);
 
         // Finally, we make the decision whether to accept or reject the pattern, and then finish.
         if (intersectSpan/patternSpan < COMMON_SPAN_THRESHOLD) {
             this.patternFrames.push(patternFrame);
         }
 
-        extendedPatternIntervals = extended;
         for (let interval of curPatternIntervals) {
             extendedPatternIntervals.push(interval);
         }
@@ -349,9 +306,6 @@ PatternFinder.prototype.createTrace = function (rawTrace) {
  *     thus rendering it unnecessary to add this smaller pattern to our collection.
  */
 
-const fs = require("fs");
-const filters = require("./Filters.js");
-var RotateFilter = filters.RotateFilter;
 
 fs.readFile("../data/data/processed_data", "utf-8", function (err, textData) {
     if (err) {
@@ -375,7 +329,7 @@ var execute = function (textData) {
     // I've begun to implement some filters for the patterns we are getting. This is still 
     // very rough around the edges. Toggle this boolean variable to turn on filters, which
     // will be applied to patternFinder.patternFrames after this point.
-    let filtersOn = false;
+    let filtersOn = true;
     
     if (filtersOn) {
         let rotateFilter = new RotateFilter(trace, patternFinder.patternFrames);
